@@ -12,7 +12,7 @@ if ENV['USER'] != "root"
   prerequisites_safisfied = false
 end
 if !`gem list`.include?("ghost")
-  errors << "Ghost gem missing, please run 'gem install ghost'"
+  errors << "Ghost gem missing, please run 'gem install ghost --pre'"
   prerequisites_safisfied = false
 else
   require 'ghost'
