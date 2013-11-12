@@ -22,7 +22,7 @@ Fill out aws.conf and place in your /etc folder
 Fill out config and add to your ~/.ssh/config
 Add .bash_profile to your profile (if your using bash any other shells, submit pull requests for your config)
 
-And that should be you.
+And that should be you (after you've restarted your terminal).
 
 TODO
 ====
