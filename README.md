@@ -6,15 +6,15 @@ Script, bash_profile and ssh config for script to update your hosts file with yo
 Installation
 ------------
 
-  brew install python
+ brew install python
 
 then
 
-  pip install awscli
+ pip install awscli
 
 also
 
-  sudo gem install ghost --pre 
+ sudo gem install ghost --pre 
 
 unless you already have it.
 
