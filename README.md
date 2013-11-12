@@ -22,7 +22,11 @@ Fill out aws.conf and place in your /etc folder
 Fill out config and add to your ~/.ssh/config
 Add .bash_profile to your profile (if your using bash any other shells, submit pull requests for your config)
 
-And that should be you (after you've restarted your terminal).
+Restart your terminal and you should now be able to ssh to your ec2 instances with host names
+
+    refresh_aws_dns
+
+    ssh ec2_server_name.ec2
 
 TODO
 ====
