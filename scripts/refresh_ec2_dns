@@ -1,0 +1,64 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'json'
+
+ENV["AWS_CONFIG_FILE"]="/etc/aws.conf"
+
+prerequisites_safisfied = true
+errors = []
+if ENV['USER'] != "root"
+  errors << "Must run with root privileges, try sudo refresh_ec2_dns"
+  prerequisites_safisfied = false
+end
+if !`gem list`.include?("ghost")
+  errors << "Ghost gem missing, please run 'gem install ghost'"
+  prerequisites_safisfied = false
+else
+  require 'ghost'
+end
+
+if prerequisites_safisfied
+
+  json = JSON.parse `aws ec2 describe-instances`
+  instances = json['Reservations'].map do |res| 
+    res["Instances"].map do |instance|
+      hash = {}
+      if instance["Tags"].select{|h| h["Key"][0..8] == "opsworks:"}.count > 0
+        # extract opsworks data
+
+        tags = {}
+        instance["Tags"].map{|h| tags[h["Key"]]=h["Value"]}
+
+        stack = tags["opsworks:stack"]
+        layer = tags.keys.select{|k| k.include?("opsworks:layer")}.first.split(":").last
+        name = tags["Name"].gsub("#{stack} - ", "")
+        
+        hash[:name] = "#{stack}_#{layer}_#{name}"
+
+      else
+        hash[:name] = instance["Tags"].select{|h| h["Key"] == "Name"}.first["Value"]
+      end
+      
+      hash[:ip] = instance["PublicIpAddress"]
+      hash[:dns] = instance["PublicDnsName"]
+      hash
+    end
+  end.flatten
+  
+  `ghost empty` unless instances.empty?
+
+  instances.each do |instance|
+    unless instance[:name].strip.empty?
+      dns_name = instance[:name].downcase.gsub(" ", "_").gsub("__", "_")
+      puts "Setting up #{dns_name}.ec2"
+      `ghost add #{dns_name}.ec2 #{instance[:ip]}`
+    end
+  end
+else
+  puts
+  puts "Errors have been detected running: "
+  puts
+  puts "  * " + errors.join("\n  * ")
+  puts
+end
