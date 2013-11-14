@@ -3,7 +3,7 @@
 require 'rubygems'
 require 'json'
 
-ENV["AWS_CONFIG_FILE"]="/etc/aws.conf"
+aws_configs = [{:prefix => "account1", :filename => "/etc/aws-account1.conf"}, {:prefix => "account2", :filename => "/etc/aws-account2.conf"}]
 
 prerequisites_safisfied = true
 errors = []
@@ -20,41 +20,50 @@ end
 
 if prerequisites_safisfied
 
-  json = JSON.parse `aws ec2 describe-instances`
-  instances = json['Reservations'].map do |res| 
-    res["Instances"].map do |instance|
-      hash = {}
-      if instance["Tags"].select{|h| h["Key"][0..8] == "opsworks:"}.count > 0
-        # extract opsworks data
+  `ghost empty`
 
-        tags = {}
-        instance["Tags"].map{|h| tags[h["Key"]]=h["Value"]}
+  aws_configs.each do |config|
+    ENV["AWS_CONFIG_FILE"]=config[:filename]
 
-        stack = tags["opsworks:stack"]
-        layer = tags.keys.select{|k| k.include?("opsworks:layer")}.first.split(":").last
-        name = tags["Name"].gsub("#{stack} - ", "")
+    prefix = config[:prefix]
+
+    json = JSON.parse `aws ec2 describe-instances`
+    instances = json['Reservations'].map do |res| 
+      res["Instances"].map do |instance|
+        hash = {}
+        if instance["Tags"].select{|h| h["Key"][0..8] == "opsworks:"}.count > 0
+          # extract opsworks data
+
+          tags = {}
+          instance["Tags"].map{|h| tags[h["Key"]]=h["Value"]}
+
+          stack = tags["opsworks:stack"]
+          layer = tags.keys.select{|k| k.include?("opsworks:layer")}.first.split(":").last
+          name = tags["Name"].gsub("#{stack} - ", "")
+          
+          hash[:name] = "#{prefix}_#{stack}_#{layer}_#{name}"
+
+        else
+          hash[:name] = "#{prefix}_" + instance["Tags"].select{|h| h["Key"] == "Name"}.first["Value"]
+        end
         
-        hash[:name] = "#{stack}_#{layer}_#{name}"
-
-      else
-        hash[:name] = instance["Tags"].select{|h| h["Key"] == "Name"}.first["Value"]
+        hash[:ip] = instance["PublicIpAddress"]
+        hash[:dns] = instance["PublicDnsName"]
+        hash
       end
-      
-      hash[:ip] = instance["PublicIpAddress"]
-      hash[:dns] = instance["PublicDnsName"]
-      hash
-    end
-  end.flatten
-  
-  `ghost empty` unless instances.empty?
+    end.flatten
 
-  instances.each do |instance|
-    unless instance[:name].strip.empty?
-      dns_name = instance[:name].downcase.gsub(" ", "_").gsub("__", "_")
-      puts "Setting up #{dns_name}.ec2"
-      `ghost add #{dns_name}.ec2 #{instance[:ip]}`
+    instances.each do |instance|
+      unless instance[:name].strip.empty?
+        dns_name = instance[:name].downcase.gsub(" ", "_").gsub("__", "_")
+        puts "Setting up #{dns_name}.ec2"
+        `ghost add #{dns_name}.ec2 #{instance[:ip]}`
+      end
     end
   end
+  puts ""
+  puts "Hosts have been updated.  Remember to open a new terminal!"
+  puts ""
 else
   puts
   puts "Errors have been detected running: "
